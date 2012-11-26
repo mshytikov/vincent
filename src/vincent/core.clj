@@ -1,4 +1,5 @@
 (ns vincent.core
+  (:gen-class)
   (:use clojure.java.io)
   (:require [clj-time.core :as cljt])
   (:require [clj-time.format :as cljtf])
@@ -10,14 +11,14 @@
 
 (println "Hello I'm Vincent")
 
+(def sketch (atom {}))
+
 (def allowed-ext ["jpg"])
 
 (def cwd
-  "/tmp/vincent")
-;  (System/getProperty "user.dir"))
+  ;"/tmp/vincent")
+  (System/getProperty "user.dir"))
 
-
-(def sketch (atom {}))
 
 (defn file-id [f]
   (digest/md5 f))
@@ -85,13 +86,12 @@
     mf))
 
 
-;(def t (create-mediafile "/tmp/vincent/new/1.jpg"))
-;(def t (create-mediafile "/tmp/vincent/new/2.jpg"))
-
-
 
 (defn vincent-file? [f]
   (some  #{(file-ext f)} allowed-ext))
+
+(defn create-file-agent [f]
+  (agent (create-mediafile f)))
 
 (defn start []
   (let [new-photos-dir (FilenameUtils/concat cwd "new")
@@ -100,11 +100,11 @@
     (doseq [f fs]
       (send-off (create-file-agent f) organize))))
 
-(defn create-file-agent [f]
-  (agent (create-mediafile f)))
-
-(start)
-
-(println "Ok")
+(defn -main []
+  (time 
+    (do 
+      (start)
+      (shutdown-agents)))
+  (println "Ok"))
 
 
