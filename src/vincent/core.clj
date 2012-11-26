@@ -10,6 +10,8 @@
 
 (println "Hello I'm Vincent")
 
+(def allowed-ext ["jpg"])
+
 (def cwd
   "/tmp/vincent")
 ;  (System/getProperty "user.dir"))
@@ -17,15 +19,15 @@
 
 (def sketch (atom {}))
 
-(defn file-id [fpath]
-  (digest/md5 (as-file fpath)))
+(defn file-id [f]
+  (digest/md5 f))
 
-(defn file-ext [fpath]
-  (FilenameUtils/getExtension fpath))
+(defn file-ext [f]
+  (-> f str FilenameUtils/getExtension .toLowerCase))
 
-(defn #^org.joda.time.DateTime file-creation-time [fpath]
+(defn #^org.joda.time.DateTime file-creation-time [f]
   (DateTime.
-    (-> fpath as-file ImageMetadataReader/readMetadata
+    (-> f ImageMetadataReader/readMetadata
       (.getDirectory  ExifSubIFDDirectory)
       (.getDate ExifSubIFDDirectory/TAG_DATETIME_ORIGINAL))))
 
@@ -36,14 +38,14 @@
   (str prefix postfix)))
 
 
-(println (file-name (cljt/date-time 1986 10 04 19 3 27 456) "asdfasdf" "jpg"))
 
 
 (defstruct mediafile :fpath :id :ext :year :month :fname)
 
-(defn create-mediafile [fpath]
-  (let [ctime (file-creation-time fpath)
-        id (file-id fpath)
+(defn create-mediafile [f]
+  (let [ctime (file-creation-time f)
+        id (file-id f)
+        fpath (str f)
         ext (file-ext fpath)
         y  (cljt/year ctime)
         m  (.toString ctime "MMMM")
@@ -87,13 +89,22 @@
 ;(def t (create-mediafile "/tmp/vincent/new/2.jpg"))
 
 
+
+(defn vincent-file? [f]
+  (some  #{(file-ext f)} allowed-ext))
+
 (defn start []
-  (let [new-photos-dir (FilenameUtils/concat cwd "new")]
-    (doseq [f (file-seq (file new-photos-dir))]
+  (let [new-photos-dir (FilenameUtils/concat cwd "new")
+        ls (file-seq (file new-photos-dir))
+        fs (filter vincent-file? ls)]
+    (doseq [f fs]
       (send-off (create-file-agent f) organize))))
 
-(defn create-file-agent [fpath]
-  (agent (create-mediafile(fpath))))
+(defn create-file-agent [f]
+  (agent (create-mediafile f)))
 
 (start)
+
+(println "Ok")
+
 
