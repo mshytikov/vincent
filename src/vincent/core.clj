@@ -13,8 +13,6 @@
 
 (def sketch (atom {}))
 
-(def active-agents-count (atom 0))
-
 (def allowed-ext ["jpg" "jpeg"])
 
 (def cwd (System/getProperty "user.dir"))
@@ -37,8 +35,8 @@
 
 (defn file-name [t id ext]
   (let [prefix (cljtf/unparse (cljtf/formatter "dd__HH'h'_mm'm'_ss's'") t)
-       postfix (str "__I" id "I_." ext)]
-  (str prefix postfix)))
+        postfix (str "__I" id "I_." ext)]
+    (str prefix postfix)))
 
 
 
@@ -69,14 +67,6 @@
 
 (defn log [& more]
   (apply println  more))
-
-(defn on-change [k r old-value new-value]
-  (when (= new-value :processed) (swap! active-agents-count dec)))
-
-(defn log-active[k r old-value new-value]
-  (log "Active agents count:" new-value))
-
-(add-watch active-agents-count :active-watcher log-active)
 
 (defn assoc-in-sketch [p leaf]
   (swap! sketch #(assoc-in % p (get-in % p leaf))))
@@ -123,24 +113,24 @@
     mf))
 
 
-
 (defn start []
   (let [new-photos-dir (FilenameUtils/concat cwd "new")
         ls (file-seq (file new-photos-dir))
         fs (filter vincent-file? ls)]
-    (doseq [a (map agent fs)]
-        (swap! active-agents-count inc)
-        (add-watch a :agent-watcher on-change)
-        (send-off a organize))))
+    (doall 
+      (for [a (map agent fs)]
+        (do
+          (send-off a organize)
+          a)))))
 
 
-(defn running? []
-  (not (zero? @active-agents-count)))
+(defn works? [a]
+  (not (or (agent-errors a) (= :processed (deref a)))))
 
 (defn -main []
   (time 
-    (do
-      (start)
-      (while (running?) (Thread/sleep 1000))))
+    (let [media-agents (start)]
+      (while (some works? media-agents) 
+        (Thread/sleep 1000))))
   (shutdown-agents)
   (println "Ok"))
