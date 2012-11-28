@@ -40,7 +40,9 @@ you know "A pair of Leather Clogs" and "Undergrowth With A Couple"
 
 ## Usage
 
-double click on 'vincent' icon 
+double click on 'vincent-0.0.1-SNAPSHOT-standalone.jar' icon 
+or 
+$ java -jar vincent-0.0.1-SNAPSHOT-standalone.jar
 
 ## License
 

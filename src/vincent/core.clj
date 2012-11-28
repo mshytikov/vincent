@@ -3,28 +3,30 @@
   (:use clojure.java.io)
   (:require [clj-time.core :as cljt])
   (:require [clj-time.format :as cljtf])
-  (:require digest)
-  (:import (org.apache.commons.io FilenameUtils)
+  (:import (org.apache.commons.io FilenameUtils FileUtils)
            (com.drew.imaging ImageMetadataReader)
            (com.drew.metadata.exif ExifSubIFDDirectory)
-           (org.joda.time DateTime)))
+           (org.joda.time DateTime)
+           (java.util.zip Adler32)))
 
 (println "Hello I'm Vincent")
 
 (def sketch (atom {}))
 
-(def allowed-ext ["jpg"])
+(def active-agents-count (atom 0))
 
-(def cwd
-  ;"/tmp/vincent")
-  (System/getProperty "user.dir"))
+(def allowed-ext ["jpg" "jpeg"])
 
+(def cwd (System/getProperty "user.dir"))
 
 (defn file-id [f]
-  (digest/md5 f))
+  (.getValue ( FileUtils/checksum f (Adler32.))))
 
 (defn file-ext [f]
   (-> f str FilenameUtils/getExtension .toLowerCase))
+
+(defn vincent-file? [f]
+  (some  #{(file-ext f)} allowed-ext))
 
 (defn #^org.joda.time.DateTime file-creation-time [f]
   (DateTime.
@@ -37,7 +39,6 @@
   (let [prefix (cljtf/unparse (cljtf/formatter "dd__HH'h'_mm'm'_ss's'") t)
        postfix (str "__I" id "I_." ext)]
   (str prefix postfix)))
-
 
 
 
@@ -62,11 +63,34 @@
   (reduce #(FilenameUtils/concat %1 (str %2) ) cwd (mediafile-sketch-path mf)))
 
 
+
+
+;###### with side effects #####
+
+(defn log [& more]
+  (apply println  more))
+
+(defn on-change [k r old-value new-value]
+  (when (= new-value :processed) (swap! active-agents-count dec)))
+
+(defn log-active[k r old-value new-value]
+  (log "Active agents count:" new-value))
+
+(add-watch active-agents-count :active-watcher log-active)
+
+(defn assoc-in-sketch [p leaf]
+  (swap! sketch #(assoc-in % p (get-in % p leaf))))
+
+
 (defn sketch-insert-mediafile [mf]
   (let [ nodes (mediafile-sketch-path mf)
         path (:fpath mf)]
-    (swap! sketch #(assoc-in % nodes (get-in % nodes path) ))
-    (= (get-in @sketch nodes) path)))
+    (when-not (get-in @sketch nodes)
+      (let [vpath (vincent-path mf)]
+        (if (-> vpath as-file .exists)
+          (assoc-in-sketch nodes vpath)
+          (assoc-in-sketch nodes path)))
+      (= (get-in @sketch nodes) path))))
 
 
 (defn move-file [from to]
@@ -74,37 +98,49 @@
         o (as-file to)]
     (when-not (.exists o)
       (make-parents o)
-      (copy i o ))
-    (delete-file i)))
+      (FileUtils/moveFile i o ))))
 
 
-(defn organize [mf]
-  (let [ fpath (:fpath mf)]
+
+(defn move-media-file [mf]
+  (let [from (:fpath mf)
+        to (vincent-path mf)]
+    (move-file from to)
+    (log  "[MOVE]" from to)
+    :processed))
+
+(defn delete-media-file [mf]
+  (let [p (:fpath mf) ]
+    (delete-file p)
+    (log  "[RM]" p)
+    :processed))
+
+(defn organize [f]
+  (let [ mf (create-mediafile f)]
     (if (sketch-insert-mediafile mf)
-      ( move-file fpath (vincent-path mf))
-      (delete-file fpath))
+      (send-off *agent* #'move-media-file)
+      (send-off *agent* #'delete-media-file))
     mf))
 
 
-
-(defn vincent-file? [f]
-  (some  #{(file-ext f)} allowed-ext))
-
-(defn create-file-agent [f]
-  (agent (create-mediafile f)))
 
 (defn start []
   (let [new-photos-dir (FilenameUtils/concat cwd "new")
         ls (file-seq (file new-photos-dir))
         fs (filter vincent-file? ls)]
-    (doseq [f fs]
-      (send-off (create-file-agent f) organize))))
+    (doseq [a (map agent fs)]
+        (swap! active-agents-count inc)
+        (add-watch a :agent-watcher on-change)
+        (send-off a organize))))
+
+
+(defn running? []
+  (not (zero? @active-agents-count)))
 
 (defn -main []
   (time 
-    (do 
+    (do
       (start)
-      (shutdown-agents)))
+      (while (running?) (Thread/sleep 1000))))
+  (shutdown-agents)
   (println "Ok"))
-
-
