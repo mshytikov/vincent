@@ -1,6 +1,6 @@
 (ns vincent.core
   (:gen-class)
-  (:use clojure.java.io)
+  (:require [clojure.java.io :as io])
   (:require [clj-time.core :as cljt])
   (:require [clj-time.format :as cljtf])
   (:import (org.apache.commons.io FilenameUtils FileUtils)
@@ -34,9 +34,8 @@
 
 
 (defn file-name [t id ext]
-  (let [prefix (cljtf/unparse (cljtf/formatter "dd__HH'h'_mm'm'_ss's'") t)
-        postfix (str "__I" id "I_." ext)]
-    (str prefix postfix)))
+  (let [created-at (cljtf/unparse (cljtf/formatter "dd__HH'h'_mm'm'_ss's'") t)]
+    (format "%s__I%sI_.%s" created-at id ext)))
 
 
 
@@ -77,17 +76,17 @@
         path (:fpath mf)]
     (when-not (get-in @sketch nodes)
       (let [vpath (vincent-path mf)]
-        (if (-> vpath as-file .exists)
+        (if (-> vpath io/file .exists)
           (assoc-in-sketch nodes vpath)
           (assoc-in-sketch nodes path)))
       (= (get-in @sketch nodes) path))))
 
 
 (defn move-file [from to]
-  (let [i (as-file from)
-        o (as-file to)]
+  (let [i (io/file from)
+        o (io/file to)]
     (when-not (.exists o)
-      (make-parents o)
+      (io/make-parents o)
       (FileUtils/moveFile i o ))))
 
 
@@ -101,7 +100,7 @@
 
 (defn delete-media-file [mf]
   (let [p (:fpath mf) ]
-    (delete-file p)
+    (io/delete-file p)
     (log  "[RM]" p)
     :processed))
 
@@ -115,13 +114,10 @@
 
 (defn start []
   (let [new-photos-dir (FilenameUtils/concat cwd "new")
-        ls (file-seq (file new-photos-dir))
+        ls (file-seq (io/file new-photos-dir))
         fs (filter vincent-file? ls)]
     (doall 
-      (for [a (map agent fs)]
-        (do
-          (send-off a organize)
-          a)))))
+      (map #(do (send-off % organize) %) (map agent fs)))))
 
 
 (defn works? [a]

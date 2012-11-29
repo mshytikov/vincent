@@ -1,4 +1,4 @@
-# vincent
+# Vincent
 
 Vincent - was created for personal purposes to organize my photos.
 
@@ -10,17 +10,17 @@ That's why first required feature is
 "organize  photos automatically by creation date using standart file system with human readable structure"
 like "Flower Beds in Holland"
 
-   root/
-        new/
-        1985/
-             September/
-                       24__11h_08m_13s__I6e18581041695e0fced713f40db4e6c3I_.jpg
-                       22__03h_58m_10s__I6e18sdgsgasdgsxxxed713f40db4e6c3I_.mp4
-             October/
-                       01__03h_58m_10s__I6e18sdgsgasdgsxxxed713f40db4e6c3I_.jpg
-        2009/
-             July/
-        2012/
+        root/
+            new/
+            1985/
+                 September/
+                          24__11h_08m_13s__I6e18581041695e0fced713f40db4e6c3I_.jpg
+                          22__03h_58m_10s__I6e18sdgsgasdgsxxxed713f40db4e6c3I_.mp4
+                 October/
+                          01__03h_58m_10s__I6e18sdgsgasdgsxxxed713f40db4e6c3I_.jpg
+            2009/
+                 July/
+            2012/
 
 
 2. I'm often copy some of my photos from camera to PC again again and again and as result have a lot of duplicates
@@ -37,12 +37,9 @@ you know "A pair of Leather Clogs" and "Undergrowth With A Couple"
 
 5. And fun "Still Life with Absinthe" in  "Bedroom in Arles"
 
-
 ## Usage
 
-double click on 'vincent-0.0.1-SNAPSHOT-standalone.jar' icon 
-or 
-$ java -jar vincent-0.0.1-SNAPSHOT-standalone.jar
+``$ java -jar vincent-0.0.1-SNAPSHOT-standalone.jar``
 
 ## License
 
